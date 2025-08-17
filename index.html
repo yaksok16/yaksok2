@@ -24,7 +24,7 @@
       position:fixed; top:28px; left:50%; transform:translateX(-50%);
       width:280px; z-index:60;
       filter:drop-shadow(0 2px 6px rgba(0,0,0,.25));
-      display:none; /* 시작/설문에서만 표시, 결과에서 숨김 */
+      display:none; /* 시작/설문에서 표시, 결과에서 숨김 */
     }
     @media (max-width:768px){
       #globalLogo{ width:220px; top:20px; }
@@ -90,11 +90,20 @@
       padding:6px 10px; color:#111; font-size:12px; box-shadow:0 4px 10px rgba(0,0,0,.08);
       pointer-events:none;
     }
+    /* ===== BGM 토글 버튼 (좌하단 스택의 최상단) ===== */
+    #bgmToggle{
+      position:fixed; left:18px; bottom:118px; z-index:45;
+      background:#fff; color:#111; border:1px solid #e5e7eb; border-radius:999px;
+      padding:8px 12px; box-shadow:0 6px 14px rgba(0,0,0,.08);
+    }
   </style>
 </head>
 <body>
   <!-- 상단 고정 로고(시작/설문에서 표시) -->
   <img id="globalLogo" src="img/logo.jpg" alt="로고">
+
+  <!-- 배경 음악: 파일은 audio/bgm.mp3 로 업로드 -->
+  <audio id="bgm" src="audio/bgm.mp3" preload="auto" loop></audio>
 
   <div class="overlay">
     <!-- ===== 시작 페이지 ===== -->
@@ -146,6 +155,7 @@
 
   <!-- 좌하단 고정 요소 -->
   <div id="spoWarn">⚠ 스포일러 포함</div>
+  <button id="bgmToggle" onclick="toggleBgm()" title="배경 음악 토글">🔇 BGM</button>
   <button id="resetFab" onclick="restart()">다시하기</button>
 
   <script>
@@ -250,24 +260,43 @@
       }
     };
 
-    /* ===== 진행/집계(정확 카운팅) & 로고 표시 제어 ===== */
+    /* ===== 진행/집계(정확 카운팅) & 로고/BGM 표시 제어 ===== */
     let i=0;
     const cnt = { X:{A:0,B:0}, Y:{A:0,B:0}, Z:{A:0,B:0} };
 
-    const elStart = document.getElementById("startPage");
-    const elQuiz  = document.getElementById("quizPage");
-    const elResult= document.getElementById("resultPage");
-    const fab     = document.getElementById("resetFab");
-    const gLogo   = document.getElementById("globalLogo");
+    const elStart  = document.getElementById("startPage");
+    const elQuiz   = document.getElementById("quizPage");
+    const elResult = document.getElementById("resultPage");
+    const fab      = document.getElementById("resetFab");
+    const gLogo    = document.getElementById("globalLogo");
+
+    const bgm      = document.getElementById("bgm");
+    const bgmBtn   = document.getElementById("bgmToggle");
 
     // 시작 시: 로고 노출
     gLogo.style.display = "block";
+
+    function updateBgmToggle(){
+      bgmBtn.textContent = (bgm && !bgm.paused) ? "🔊 BGM" : "🔇 BGM";
+    }
+    function playBgm(){
+      if(!bgm) return;
+      bgm.volume = 0.4;                  // 기본 음량
+      bgm.play().then(updateBgmToggle).catch(()=>{}); // 모바일 정책: 사용자 클릭 후 OK
+    }
+    function toggleBgm(){
+      if(!bgm) return;
+      if (bgm.paused) playBgm();
+      else { bgm.pause(); updateBgmToggle(); }
+    }
+    updateBgmToggle();
 
     function startQuiz(){
       elStart.style.display="none";
       elQuiz.style.display="block";
       fab.style.display="inline-block";
       gLogo.style.display="block"; // 설문 중에도 로고 표시
+      playBgm();                   // 첫 사용자 클릭에서 브금 시작
       showQuestion();
       window.scrollTo({top:0,behavior:"smooth"});
     }
@@ -335,6 +364,8 @@
       document.getElementById("m2name").innerText=m2.name;
       document.getElementById("m2img").src=imgByName[m2.name];
       document.getElementById("m2why").innerText=m2.why;
+
+      updateBgmToggle(); // 상태 표시 업데이트
     }
 
     function restart(){
@@ -344,6 +375,8 @@
       elStart.style.display="block";
       fab.style.display="none";
       gLogo.style.display="block"; // 시작으로 돌아오면 로고 다시 표시
+      // 브금은 계속 재생(원하면 아래 두 줄 주석 해제)
+      // bgm.pause(); bgm.currentTime=0; updateBgmToggle();
       window.scrollTo({top:0,behavior:"smooth"});
     }
   </script>
