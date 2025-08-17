@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>내 대학생활로 알아보는 거인</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <style>
+    /* ===== 배경: 원본 명도 그대로 ===== */
+    body{
+      margin:0;
+      font-family:Arial,"Noto Sans KR",sans-serif;
+      background:url("img/bg.jpg") no-repeat center center fixed;
+      background-size:cover;
+    }
+    .overlay{
+      min-height:100vh;
+      display:flex; align-items:center; justify-content:center;
+      padding:20px;
+      background:none; /* 연한 오버레이 제거 */
+    }
+
+    /* ===== 상단 고정 로고(시작/설문에서만 보임) ===== */
+    #globalLogo{
+      position:fixed; top:28px; left:50%; transform:translateX(-50%);
+      width:280px; z-index:60;
+      filter:drop-shadow(0 2px 6px rgba(0,0,0,.25));
+      display:none; /* 시작/설문에서만 표시, 결과에서 숨김 */
+    }
+    @media (max-width:768px){
+      #globalLogo{ width:220px; top:20px; }
+    }
+
+    /* ===== 카드 & 기본 UI (여백 축소 + 폭 확대) ===== */
+    .card{
+      background:#fff; width:100%; max-width:960px;
+      padding:16px; border-radius:12px;
+      box-shadow:0 4px 10px rgba(0,0,0,.12);
+    }
+    .center{text-align:center}
+    .muted{color:#64748b}
+    button{
+      padding:12px 18px; border:none; border-radius:8px;
+      background:#111827; color:#fff; cursor:pointer;
+    }
+    button:hover{opacity:.92}
+
+    /* ===== 결과 레이아웃 ===== */
+    .result-layout{display:flex; gap:22px; align-items:flex-start}
+    .result-layout img{max-width:290px; border-radius:12px}
+    /* 데스크톱: 텍스트(왼)/이미지(오) */
+    @media (min-width:769px){ .result-layout{flex-direction:row-reverse} }
+    /* 모바일: 제목 바로 아래 이미지 먼저 */
+    @media (max-width:768px){
+      .result-layout{flex-direction:column}
+      #resultImg{order:-1; max-width:230px; align-self:center}
+    }
+
+    /* ===== 메인 결과 강조 ===== */
+    #resultTitle{font-size:28px; margin:4px 0 2px}
+    #resultQuote{font-weight:900; font-size:24px}
+
+    /* ===== 능력치 점(3개 중 득표수만큼 채움) ===== */
+    .row{display:flex;justify-content:space-between;align-items:center;border:1px solid #e5e7eb;
+      border-radius:10px;padding:10px 12px;margin-top:8px}
+    .dots{display:flex;gap:4px}
+    .dot{width:10px;height:10px;border-radius:50%;border:1px solid #94a3b8;background:#fff}
+    .dot.on{background:#6366f1;border-color:#6366f1}
+
+    /* ===== 매칭 섹션(축소 + 얼굴 위쪽 우선 크롭) ===== */
+    h3.sub{font-size:18px; margin:10px 0 6px}
+    .match-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+    .match{border:1px solid #e5e7eb;border-radius:10px;padding:10px;background:#fafafa; font-size:14px}
+    .match img{
+      width:100%; height:160px; object-fit:cover; object-position:top center; /* 얼굴 위쪽 보이게 */
+      border-radius:8px;
+    }
+    .match .name{font-weight:700;margin-top:6px}
+    .match .why{color:#6b7280;margin-top:4px;line-height:1.35}
+
+    /* ===== 좌하단 고정 요소들 ===== */
+    #resetFab{
+      position:fixed; left:18px; bottom:18px; z-index:50;
+      background:#111827; color:#fff; border:none; border-radius:999px;
+      padding:12px 16px; box-shadow:0 10px 20px rgba(0,0,0,.15);
+      display:none; /* 시작화면 숨김 */
+    }
+    #spoWarn{
+      position:fixed; left:18px; bottom:70px; z-index:40;
+      background:#fff; border:1px solid #e5e7eb; border-radius:999px;
+      padding:6px 10px; color:#111; font-size:12px; box-shadow:0 4px 10px rgba(0,0,0,.08);
+      pointer-events:none;
+    }
+  </style>
+</head>
+<body>
+  <!-- 상단 고정 로고(시작/설문에서 표시) -->
+  <img id="globalLogo" src="img/logo.jpg" alt="로고">
+
+  <div class="overlay">
+    <!-- ===== 시작 페이지 ===== -->
+    <div id="startPage" class="card center">
+      <h1 style="margin:10px 0 6px">내 대학생활로 알아보는 거인</h1>
+      <button onclick="startQuiz()">설문 시작하기</button>
+    </div>
+
+    <!-- ===== 설문 페이지 ===== -->
+    <div id="quizPage" class="card" style="display:none">
+      <div class="muted" id="progress" style="margin-bottom:8px"></div>
+      <h2 id="question" style="margin-top:4px"></h2>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:12px">
+        <button id="btnA" onclick="answer('A')"></button>
+        <button id="btnB" onclick="answer('B')"></button>
+      </div>
+    </div>
+
+    <!-- ===== 결과 페이지 ===== -->
+    <div id="resultPage" class="card" style="display:none">
+      <h2 id="resultTitle"></h2>
+
+      <div class="result-layout" style="margin-top:10px">
+        <img id="resultImg" src="" alt="거인 이미지">
+        <div>
+          <p id="resultQuote" style="margin:4px 0 10px"></p>
+          <p id="resultUniLife" class="muted" style="margin:0 0 8px"></p>
+          <div id="statRows"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        <h3 class="sub">같이 대학생활하기 좋은 거인</h3>
+        <div class="match-grid">
+          <div class="match">
+            <img id="m1img" alt="매칭 거인 1">
+            <div class="name" id="m1name"></div>
+            <div class="why" id="m1why"></div>
+          </div>
+          <div class="match">
+            <img id="m2img" alt="매칭 거인 2">
+            <div class="name" id="m2name"></div>
+            <div class="why" id="m2why"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 좌하단 고정 요소 -->
+  <div id="spoWarn">⚠ 스포일러 포함</div>
+  <button id="resetFab" onclick="restart()">다시하기</button>
+
+  <script>
+    /* ===== 9문항 (요청 문구 그대로) ===== */
+    const questions = [
+      // X: 사고력
+      {q:"어떤 수업을 들을지 고를 때 나는?", a:"교수님이나 강의 분위기, 감성적인 요소를 먼저 본다", b:"커리큘럼이나 효율성, 성적 반영 비율을 우선 고려한다", type:"X"},
+      {q:"진로를 고민할 때 나는?", a:"‘내가 뭘 좋아할까’를 중심으로 생각이 흐른다", b:"취업 가능성, 연봉, 전망 등 구체적인 기준을 세운다", type:"X"},
+      {q:"과제를 어떤 주제로 할지 정할 때 나는?", a:"내 감정이 더 끌리는 주제를 고른다", b:"논리적 근거가 더 확실한 주제를 고른다", type:"X"},
+      // Y: 행동력
+      {q:"새로운 동아리가 마음에 들 때 나는?", a:"먼저 알아보고 바로 신청한다", b:"누가 같이 가는지 보고 결정한다", type:"Y"},
+      {q:"과에서 생긴 문제에 대해 불만이 생기면?", a:"익명이라도 의견을 적극적으로 낸다", b:"조용히 상황을 지켜보며 판단한다", type:"Y"},
+      {q:"단체활동이 시작되었을 때 나는?", a:"주도적으로 움직이며 앞장서는 편이다", b:"주어진 역할 안에서 내 몫을 해낸다", type:"Y"},
+      // Z: 에너지 흐름
+      {q:"시험 끝난 후 나는 보통?", a:"혼자만의 시간을 가지며 충전한다", b:"친구들과 모여 시끄럽게 풀어버린다", type:"Z"},
+      {q:"감정이 복잡한 날, 나는?", a:"일기나 기록으로 마음을 정리한다", b:"친구에게 말하면서 풀고 정리된다", type:"Z"},
+      {q:"사람 많은 행사에 가고 난 후 나는?", a:"에너지가 빠져나간 느낌", b:"오히려 기분이 업되고 활기차다", type:"Z"}
+    ];
+
+    /* ===== 이미지 & 명대사 ===== */
+    const imgByName = {
+      "진격의 거인":"img/attack.jpg","초대형 거인":"img/colossal.jpg","여성형 거인":"img/female.jpg",
+      "짐승 거인":"img/beast.jpg","갑옷 거인":"img/armored.jpg","차력 거인":"img/cart.jpg",
+      "전퇴의 거인":"img/warhammer.jpg","무지성 거인":"img/mindless.jpg"
+    };
+    const quote = {
+      "진격의 거인":"우리는 모두 태어났을 때부터 자유다",
+      "여성형 거인":"내 도박은 지금부터야",
+      "짐승 거인":"애초에 태어나지 않았다면, 고통받지 않아도 됐을텐데",
+      "전퇴의 거인":"오라버니, 타이버 가의 사명, 잘 완수하셨습니다.",
+      "갑옷 거인":"내가 갑옷 거인이고 이 녀석이 초대형 거인이야.",
+      "초대형 거인":"라이너! 하는 거지?! 지금··! 여기서",
+      "차력 거인":"난 마레를 믿지 않아. 나는 함께 싸워온 동료들을 믿고 있어.",
+      "무지성 거인":"우어어어어"
+    };
+
+    /* ===== X-Y-Z → 거인 매핑(구어체 이유 포함) ===== */
+    const profiles = {
+      "감정형-능동형-외부방출형": {
+        name:"진격의 거인",
+        uni:"신념과 감정이 행동으로 직결되는 추진가. 사람을 모으고 새 판을 짠다.",
+        matches:[
+          {name:"짐승 거인", why:"네가 밀어붙일 때, 이 친구가 전략으로 방향 잡아줘."},
+          {name:"초대형 거인", why:"너가 속도 내면, 얘가 일정·리스크 잡아서 마무리가 깔끔해."}
+        ]
+      },
+      "감정형-능동형-내부수용형": {
+        name:"갑옷 거인",
+        uni:"책임감과 완성도로 말하는 실무형 리더. 약속을 끝까지 지킨다.",
+        matches:[
+          {name:"진격의 거인", why:"완성도 챙기는 너에게 에너지랑 추진력 듬뿍 실어줘."},
+          {name:"전퇴의 거인", why:"깊이 있는 리서치로 디테일까지 든든하게 받쳐줘."}
+        ]
+      },
+      "감정형-수동형-외부방출형": {
+        name:"무지성 거인",
+        uni:"분위기를 살리고 팀의 긴장을 낮춰 시너지를 만든다.",
+        matches:[
+          {name:"진격의 거인", why:"네가 분위기 띄우면, 이쪽이 판을 더 키워줘서 재밌어져."},
+          {name:"차력 거인", why:"차분히 묵묵히 밀어줘서 네 텐션이 헛돌지 않아."}
+        ]
+      },
+      "감정형-수동형-내부수용형": {
+        name:"전퇴의 거인",
+        uni:"표현은 절제되지만 깊이 파고드는 기획·리서치형. 균형을 잡는 핵심.",
+        matches:[
+          {name:"초대형 거인", why:"큰 틀·일정을 딱 잡아줘서 네 리서치가 힘을 받지."},
+          {name:"갑옷 거인", why:"끝까지 디테일 밀어줘서 완성도가 훅 올라가."}
+        ]
+      },
+      "이성형-능동형-외부방출형": {
+        name:"짐승 거인",
+        uni:"실험·리서치·전략 수립의 브레인. 아이디어를 실행으로 연결.",
+        matches:[
+          {name:"차력 거인", why:"네 전략을 꾸준히 실행해서 결과로 뽑아줘."},
+          {name:"진격의 거인", why:"붙으면 팀 동력이 미친 듯이 오른다."}
+        ]
+      },
+      "이성형-능동형-내부수용형": {
+        name:"여성형 거인",
+        uni:"정확성과 결단을 겸비. 데이터로 설득하며 결과의 질 중시.",
+        matches:[
+          {name:"초대형 거인", why:"큰 그림 안정화는 이쪽이 맡고, 넌 날카롭게 결단하면 딱이야."},
+          {name:"차력 거인", why:"빈칸을 야무지게 메꿔줘서 넌 핵심에 집중 가능."}
+        ]
+      },
+      "이성형-수동형-외부방출형": {
+        name:"차력 거인",
+        uni:"성실한 실행과 팀워크 중심. 편한 합의점을 찾는 중재자.",
+        matches:[
+          {name:"짐승 거인", why:"방향은 짚어주고, 너는 꾸준히 밀어 성과 뽑는 조합."},
+          {name:"전퇴의 거인", why:"공감·정리를 맡아줘서 팀 분위기가 편안해져."}
+        ]
+      },
+      "이성형-수동형-내부수용형": {
+        name:"초대형 거인",
+        uni:"분석과 설계의 안정감. 보이지 않는 컨트롤 타워에 강함.",
+        matches:[
+          {name:"전퇴의 거인", why:"자료로 받쳐주고, 너는 구조로 묶으면 완벽."},
+          {name:"진격의 거인", why:"계획에 추진력 더해주면 실제로 굴러간다."}
+        ]
+      }
+    };
+
+    /* ===== 진행/집계(정확 카운팅) & 로고 표시 제어 ===== */
+    let i=0;
+    const cnt = { X:{A:0,B:0}, Y:{A:0,B:0}, Z:{A:0,B:0} };
+
+    const elStart = document.getElementById("startPage");
+    const elQuiz  = document.getElementById("quizPage");
+    const elResult= document.getElementById("resultPage");
+    const fab     = document.getElementById("resetFab");
+    const gLogo   = document.getElementById("globalLogo");
+
+    // 시작 시: 로고 노출
+    gLogo.style.display = "block";
+
+    function startQuiz(){
+      elStart.style.display="none";
+      elQuiz.style.display="block";
+      fab.style.display="inline-block";
+      gLogo.style.display="block"; // 설문 중에도 로고 표시
+      showQuestion();
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+    function showQuestion(){
+      const q=questions[i];
+      document.getElementById("progress").innerText=`문항 ${i+1} / ${questions.length}`;
+      document.getElementById("question").innerText=q.q;
+      document.getElementById("btnA").innerText="A. "+q.a;
+      document.getElementById("btnB").innerText="B. "+q.b;
+    }
+    function answer(choice){
+      const axis=questions[i].type;
+      if(choice==="A") cnt[axis].A++; else cnt[axis].B++;
+      i++;
+      if(i<questions.length) showQuestion(); else showResult();
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+
+    function pick(axis){
+      const c=cnt[axis];
+      if(axis==="X"){ // A=감정형, B=이성형
+        return (c.A>=c.B) ? {label:"감정형",dots:c.A} : {label:"이성형",dots:c.B};
+      }
+      if(axis==="Y"){ // A=능동형, B=수동형
+        return (c.A>=c.B) ? {label:"능동형",dots:c.A} : {label:"수동형",dots:c.B};
+      }
+      // Z — A=내부수용형, B=외부방출형
+      return (c.A>=c.B) ? {label:"내부수용형",dots:c.A} : {label:"외부방출형",dots:c.B};
+    }
+    function dots(n){
+      let h='<div class="dots">';
+      for(let k=0;k<3;k++) h+=`<span class="dot ${k<n?'on':''}"></span>`;
+      return h+'</div>';
+    }
+
+    function showResult(){
+      elQuiz.style.display="none";
+      elResult.style.display="block";
+      fab.style.display="inline-block";
+      gLogo.style.display="none"; // 결과에서는 상단 로고 숨김
+
+      const px=pick("X"), py=pick("Y"), pz=pick("Z");
+      const key=`${px.label}-${py.label}-${pz.label}`;
+      const prof=profiles[key];
+      const main=prof.name;
+
+      document.getElementById("resultTitle").innerText=`당신에게 어울리는 거인은: ${main}`;
+      document.getElementById("resultImg").src=imgByName[main];
+      document.getElementById("resultQuote").innerText="“"+(quote[main]||"")+"”";
+      document.getElementById("resultUniLife").innerText=prof.uni;
+
+      // 우세한 것만 3줄
+      document.getElementById("statRows").innerHTML = `
+        <div class="row"><b>${px.label}</b>${dots(px.dots)}</div>
+        <div class="row"><b>${py.label}</b>${dots(py.dots)}</div>
+        <div class="row"><b>${pz.label}</b>${dots(pz.dots)}</div>
+      `;
+
+      // 매칭 2종(축소 + 위쪽 크롭 + 구어체 이유)
+      const m1=prof.matches[0], m2=prof.matches[1];
+      document.getElementById("m1name").innerText=m1.name;
+      document.getElementById("m1img").src=imgByName[m1.name];
+      document.getElementById("m1why").innerText=m1.why;
+
+      document.getElementById("m2name").innerText=m2.name;
+      document.getElementById("m2img").src=imgByName[m2.name];
+      document.getElementById("m2why").innerText=m2.why;
+    }
+
+    function restart(){
+      i=0; cnt.X.A=cnt.X.B=cnt.Y.A=cnt.Y.B=cnt.Z.A=cnt.Z.B=0;
+      elResult.style.display="none";
+      elQuiz.style.display="none";
+      elStart.style.display="block";
+      fab.style.display="none";
+      gLogo.style.display="block"; // 시작으로 돌아오면 로고 다시 표시
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+  </script>
+</body>
+</html>
